@@ -1,22 +1,6 @@
 /* globals $, L, moment, handlebars, GTFS_BASE_URL */
 
-// Sets up a map of Nashville
-var map = L.map('map', {
-  doubleClickZoom: false,
-  center: L.latLng(36.166512, -86.781581),
-  maxBounds: L.latLngBounds(
-    L.latLng(36.725005, -87.579122), // northwest
-    L.latLng(35.541600, -86.097066) // southeast
-  ),
-  zoom: 12
-})
-
-L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}{r}.png', {
-  subdomains: 'abcd',
-  maxZoom: 19,
-  minZoom: 11,
-  attribution: $('#attribution_template').html(),
-}).addTo(map)
+//= require map.js
 
 var routesLayer = L.layerGroup().addTo(map)
 

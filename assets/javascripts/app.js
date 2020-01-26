@@ -1,107 +1,11 @@
-/* globals $, L, moment, GTFS_BASE_URL */
+/* globals $, L, moment, GTFS_BASE_URL, markers locationMarker, tripUpdates, routesData, agenciesData, routeShapes, stopsData */
+
+//= require map.js
+//= require icons.js
+//= require service-alerts.js
 
 var refreshRate = 10 * 1000
 var refreshAttempts = 1
-
-var markers = {}
-var locationMarker = {}
-var tripUpdates = {}
-var routesData = {}
-var agenciesData = {}
-var routeShapes = {}
-var stopsData = {}
-
-// Sets up a map of Nashville
-var map = L.map('map', {
-  doubleClickZoom: false,
-  center: L.latLng(36.166512, -86.781581),
-  maxBounds: L.latLngBounds(
-    L.latLng(36.725005, -87.579122), // northwest
-    L.latLng(35.541600, -86.097066) // southeast
-  ),
-  zoom: 12
-})
-
-L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}{r}.png', {
-  subdomains: 'abcd',
-  maxZoom: 19,
-  minZoom: 11,
-  attribution: $('#attribution_template').html(),
-}).addTo(map)
-
-var vehiclesLayer = L.layerGroup().addTo(map)
-var routesLayer = L.layerGroup().addTo(map)
-var stopsLayer = L.layerGroup().addTo(map)
-
-L.control.layers(
-  null,
-  {
-    'Vehicles': vehiclesLayer,
-    'Routes': routesLayer,
-    'Stops': stopsLayer
-  }
-).addTo(map)
-
-// Handle location detection success
-map.on('locationerror', function (e) {
-  console.error(e)
-  return window.alert('Unable to find your location.')
-})
-
-// Handle location detection error
-map.on('locationfound', function (e) {
-  var radius = e.accuracy / 2
-  if (locationMarker.marker) {
-    map.removeLayer(locationMarker.marker)
-  }
-  if (locationMarker.radius) {
-    map.removeLayer(locationMarker.radius)
-  }
-  // If marker is outside of maxBounds, show error
-  if (!map.options.maxBounds.contains(e.latlng)) {
-    return window.alert('Your location is outside of the bounds of this map.')
-  }
-  locationMarker = {
-    marker: L.marker(e.latlng).addTo(map).bindPopup('Accuracy: ' + Math.round(radius) + ' meters').openPopup(),
-    radius: L.circle(e.latlng, radius).addTo(map)
-  }
-  map.setView(e.latlng, 14)
-})
-
-// Adds the custom icon for a vehicle
-var VehicleIcon = L.Icon.extend({
-  options: {
-    iconSize: [32, 32],
-    popupAnchor: [0, -14],
-    shadowSize: [32, 50],
-    shadowAnchor: [16, 16]
-  }
-})
-
-// Adds the custom icon for a transit stop
-var StopIcon = L.Icon.extend({
-  options: {
-    iconUrl: 'assets/images/stop.svg',
-    iconSize: [16, 16],
-    shadowUrl: null,
-  }
-})
-
-// Route types and agencies have different markers
-var getIcons = function (routeData) {
-  var iconPath = 'assets/images/' + routeData.route_type + '.svg'
-  var shadowPath = 'assets/images/' + routeData.route_type + '-shadow.svg'
-  return {
-    stationary: new VehicleIcon({
-      iconUrl: iconPath,
-      shadowUrl: null
-    }),
-    moving: new VehicleIcon({
-      iconUrl: iconPath,
-      shadowUrl: shadowPath
-    })
-  }
-}
 
 // Format popup
 var formatPopup = function (e) {
@@ -305,74 +209,6 @@ var checkForAlerts = function () {
       displayAlerts(data)
     })
   })
-}
-
-// Display Alerts
-var displayAlerts = function (data) {
-  var alertContainer = $('#service_alerts')
-  alertContainer.empty()
-  if (!data || data.length === 0) {
-    var content = L.Util.template($('#alert_empty_template').html(), {})
-    $(alertContainer).append(content)
-    $('#service_alerts_modal').modal('show')
-  }
-
-  // Add the group container
-  var alertGroup = L.Util.template(
-    $('#alert_group_template').html(),
-    {}
-  )
-  $(alertContainer).append(alertGroup);
-
-  var alertTypeCounts = {}
-
-  $.each(data, function (i, message) {
-    if (!message.alert.effect) {
-      message.alert.effect = 'Notice'
-    }
-
-    var alertType = message.alert.effect.toLowerCase().replace(' ', '_')
-
-    var alert_class = 'info'
-    if (message.alert.effect == 'Detour' || message.alert.effect == 'Significant Delays') {
-      alert_class = 'warning'
-    }
-    if (message.alert.effect == 'Reduced Service' || message.alert.effect == 'No Service') {
-      alert_class = 'danger'
-    }
-
-    // Create the container for the alerts if not present
-    if (!$('#alert-group-' + alertType).length) {
-      alertTypeCounts[alertType] = 0
-      $('#alertGroup').append(L.Util.template(
-        $('#alert_group_item_template').html(),
-        {
-          type: alertType,
-          displayType: message.alert.effect
-        }
-      ))
-    }
-
-    var content = L.Util.template(
-      $('#alert_template').html(),
-      {
-        alert_class: alert_class,
-        alert_effect: message.alert.effect,
-        alert_cause: message.alert.cause ? ' (' + message.alert.cause +')' : '',
-        alert_heading: message.alert.header_text.translation[0].text,
-        alert_body: message.alert.description_text.translation[0].text.replace(/(\n)/g, '<br />'),
-        start_date: moment.unix(message.alert.active_period[0].start).format('l h:mm a'),
-        end_date: moment.unix(message.alert.active_period[0].end).format('l h:mm a')
-      }
-    )
-    $('#alert-group-' + alertType).append(content)
-    // Increment counter
-    alertTypeCounts[alertType]++
-    $('#alert-group-count-' + alertType).html(
-      alertTypeCounts[alertType]
-    )
-  })
-  $('#service_alerts_modal').modal('show')
 }
 
 // Display the location button

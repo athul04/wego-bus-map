@@ -1,6 +1,9 @@
+# frozen_string_literal: true
+
 require 'dotenv/load'
 require 'sinatra/base'
 require 'sinatra/content_for'
+require 'sprockets'
 require 'net/http'
 require 'uri'
 require 'fileutils'
@@ -17,6 +20,20 @@ end
 class WeGoBusMap < Sinatra::Base
   helpers Sinatra::ContentFor
 
+  configure :development, :test do
+    set :force_ssl, (ENV['FORCE_SSL'] == '1')
+  end
+
+  configure :production do
+    set :force_ssl, true
+  end
+
+  # Sprockets
+  set :environment, Sprockets::Environment.new
+  environment.append_path 'assets/stylesheets'
+  environment.append_path 'assets/javascripts'
+  environment.append_path 'assets/images'
+
   accessibility_messages = {
     wheelchairs: [
       'No accessibility information for the trip.',
@@ -30,20 +47,17 @@ class WeGoBusMap < Sinatra::Base
     ]
   }
 
-  configure :development, :test do
-    set :force_ssl, (ENV['FORCE_SSL'] == '1')
-  end
-
-  configure :production do
-    set :force_ssl, true
-  end
-
   before do
     @google_analytics_id = ENV['GOOGLE_ANALYTICS_ID'] || ''
   end
 
   get '/' do
     erb :index, layout: 'layouts/app'.to_sym
+  end
+
+  get '/assets/*' do
+    env['PATH_INFO'].sub!('/assets', '')
+    settings.environment.call(env)
   end
 
   get '/about/?' do
